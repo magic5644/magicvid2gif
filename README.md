@@ -71,6 +71,21 @@ src/
 npm run package   # uses vsce package
 ```
 
+## VSIX-based E2E tests
+
+You can run E2E tests against a built VSIX using the `test:vscode:vsix` helper which packages the extension and runs the test suite inside a temporary VS Code instance:
+
+```bash
+npm run test:vscode:vsix
+```
+
+Notes & tips:
+
+- The script uses `vsce package` (via `npx`) to build a `.vsix`. If packaging fails due to environment types, you can skip packaging and pass an existing VSIX with `--vsix <path>`:
+  - `node ./out/tests/vscode-e2e/runTests.js --vsix ./magicvid2gif-1.0.0.vsix`
+- The script downloads a test copy of VS Code, installs the VSIX into that instance, and then runs the compiled tests.
+- Make sure to run `npm run compile` (or `npm run compile:tests`) before invoking this script so the test runner is compiled into `out/test/suite`.
+
 ## License
 
 MIT

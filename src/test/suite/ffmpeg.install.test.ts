@@ -1,13 +1,13 @@
 import * as assert from 'node:assert';
+import { exec } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as sinon from 'sinon';
 import * as vscode from 'vscode';
-import { UiPort, SettingsPort, WorkspacePort } from '../../types/ports';
 import { FfmpegManager } from '../../ffmpegManager';
+import { SettingsPort, UiPort, WorkspacePort } from '../../types/ports';
 
 const execAsync = promisify(exec);
 
