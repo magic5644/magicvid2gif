@@ -1,3 +1,4 @@
+# Development files
 .vscode/**
 .vscode-test/**
 .github/**
@@ -6,15 +7,28 @@
 .clavix
 .gemini
 .eslintignore
+.eslintrc.json
 AGENTS.md
 esbuild.js
-binaries/**
-src/**
-out/**
-out/test/**
 vsc-extension-quickstart.md
 **/tsconfig.json
-**/.eslintrc.json
+
+# Source files (bundled by esbuild)
+src/**
+node_modules/**
+
+# Compiled TypeScript (bundled by esbuild)
+out/**
+out/test/**
+
+# Build artifacts
 **/*.map
 **/*.ts
 !**/types.d.ts
+
+# Test fixtures and binaries
+binaries/**
+test/**
+tests/**
+**/test/**
+**/tests/**
