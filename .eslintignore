@@ -1,0 +1,13 @@
+# Ignore generated and bundled outputs
+out/
+dist/
+
+# TypeScript declaration files and sourcemaps
+**/*.d.ts
+**/*.js.map
+
+# Test runner artifacts
+.vscode-test/
+
+# Node modules
+node_modules/

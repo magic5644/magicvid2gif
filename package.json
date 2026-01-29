@@ -1,0 +1,200 @@
+{
+  "name": "magicvid2gif",
+  "displayName": "Magic Video To Gif",
+  "description": "Video to GIF converter optimized works with FFmpeg and Gifsicle. FFmpeg is required and can be auto-installed.",
+  "version": "1.0.0",
+  "publisher": "magic5644",
+  "author": {
+    "name": "magic56"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/magic5644/magicvid2gif.git"
+  },
+  "homepage": "https://github.com/magic5644/magicvid2gif/blob/main/README.md",
+  "bugs": {
+    "url": "https://github.com/magic5644/magicvid2gif/issues"
+  },
+  "qna": "https://github.com/magic5644/magicvid2gif/discussions",
+  "icon": "medias/logo.png",
+  "galleryBanner": {
+    "color": "#2D3748",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.96.0",
+    "node": ">=20.0.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "gif",
+    "video",
+    "converter",
+    "optimization",
+    "ffmpeg",
+    "animation",
+    "bundled"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "magicvid2gif.convert",
+        "title": "Convert to GIF (Quick)",
+        "category": "MagicVid2Gif",
+        "icon": "$(play)"
+      },
+      {
+        "command": "magicvid2gif.convertWithOptions",
+        "title": "Convert to GIF (Advanced Options)",
+        "category": "MagicVid2Gif",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "magicvid2gif.installFfmpeg",
+        "title": "Install/Update FFmpeg",
+        "category": "MagicVid2Gif"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "magicvid2gif.convert",
+          "group": "magicvid2gif@1",
+          "when": "resourceExtname =~ /\\.(mp4|mov|avi|mkv|webm|flv|wmv|m4v|3gp|ogv)$/i"
+        },
+        {
+          "command": "magicvid2gif.convertWithOptions",
+          "group": "magicvid2gif@2",
+          "when": "resourceExtname =~ /\\.(mp4|mov|avi|mkv|webm|flv|wmv|m4v|3gp|ogv)$/i"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "magicvid2gif.convert",
+          "when": "false"
+        },
+        {
+          "command": "magicvid2gif.convertWithOptions",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MagicVid2Gif",
+      "properties": {
+        "magicvid2gif.gifsiclePath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to Gifsicle for extra optimization (optional)"
+        },
+        "magicvid2gif.defaultResolution": {
+          "type": "string",
+          "default": "1920:1080",
+          "description": "Default resolution (format width:height or -1:height to preserve aspect)"
+        },
+        "magicvid2gif.defaultFps": {
+          "type": "number",
+          "default": 30,
+          "description": "Default FPS for the GIF"
+        },
+        "magicvid2gif.defaultStartTime": {
+          "type": "number",
+          "default": 0,
+          "description": "Default start time (seconds)"
+        },
+        "magicvid2gif.defaultDuration": {
+          "type": "number",
+          "default": 0,
+          "description": "Default duration (0 = until end)"
+        },
+        "magicvid2gif.colorCount": {
+          "type": "number",
+          "default": 128,
+          "enum": [
+            64,
+            128,
+            256
+          ],
+          "description": "Number of colors in the palette"
+        },
+        "magicvid2gif.optimizationLevel": {
+          "type": "string",
+          "default": "ultra",
+          "enum": [
+            "fast",
+            "balanced",
+            "quality",
+            "ultra"
+          ],
+          "description": "Optimization level"
+        },
+        "magicvid2gif.dithering": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Bayer dithering to smooth gradients"
+        },
+        "magicvid2gif.lossyCompression": {
+          "type": "number",
+          "default": 80,
+          "minimum": 0,
+          "maximum": 200,
+          "description": "Lossy compression level (0-30=lossless, 80-120=optimal)"
+        },
+        "magicvid2gif.autoInstallFfmpeg": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically download FFmpeg if missing"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build:esbuild -- --production",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "build:esbuild": "node esbuild.js",
+    "bundle": "npm run build:esbuild",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test:unit": "npm run compile && mocha -u tdd -r source-map-support/register ./out/test/unit/**/*.test.js",
+    "test:e2e": "npm run compile && npm run build:esbuild && node ./out/test/runTest.js",
+    "test": "npm run test:e2e",
+    "check:types": "tsc --noEmit",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "package": "vsce package",
+    "package:vsix": "vsce package",
+    "package:verify": "npx vsce ls | grep '\\.map$' && echo '❌ ERROR: .map files found in package!' && exit 1 || echo '✅ No .map files in package'"
+  },
+  "devDependencies": {
+    "@types/chai": "^5.2.3",
+    "@types/fluent-ffmpeg": "^2.1.28",
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.1.0",
+    "@types/proxyquire": "^1.3.31",
+    "@types/sinon": "^21.0.0",
+    "@types/vscode": "^1.75.1",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "@vscode/test-electron": "^2.5.2",
+    "chai": "^6.2.2",
+    "esbuild": "^0.27.2",
+    "eslint": "^8.57.1",
+    "glob": "^8.1.0",
+    "mocha": "^10.8.2",
+    "proxyquire": "^2.1.3",
+    "sinon": "^21.0.1",
+    "source-map-support": "^0.5.21",
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "fluent-ffmpeg": "^2.1.3",
+    "unzipper": "^0.10.14"
+  }
+}
