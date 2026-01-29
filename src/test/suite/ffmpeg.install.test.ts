@@ -27,21 +27,28 @@ async function createFixtureArchive(tmpRoot: string): Promise<{ archivePath: str
     : '#!/bin/sh\necho "ffmpeg version test-e2e"\n';
   fs.writeFileSync(scriptPath, scriptContent, { mode: 0o755 });
 
-  // Put the binary inside a folder so --strip-components=1 works on Linux tarball
   const archiveWorkingRoot = path.join(tmpRoot, 'archive-src');
   const binDir = path.join(archiveWorkingRoot, 'bin');
   fs.mkdirSync(binDir, { recursive: true });
   fs.copyFileSync(scriptPath, path.join(binDir, executableName));
 
-  if (os.platform() === 'linux') {
-    const archivePath = path.join(tmpRoot, 'ffmpeg.tar.xz');
-    await execAsync(`tar -C "${archiveWorkingRoot}" -cJf "${archivePath}" bin`);
-    return { archivePath, executableName };
-  }
-
-  // macOS path (zip expected). Windows is skipped in the test.
+  // Create a ZIP archive programmatically to avoid relying on system 'zip' or 'tar'
   const archivePath = path.join(tmpRoot, 'ffmpeg.zip');
-  await execAsync(`cd "${archiveWorkingRoot}" && zip -r "${archivePath}" bin`);
+  const archiver = require('archiver');
+  const output = fs.createWriteStream(archivePath);
+  const archive = archiver('zip', { zlib: { level: 9 } });
+
+  const finalizePromise = new Promise<void>((resolve, reject) => {
+    output.on('close', () => resolve());
+    archive.on('error', (err: any) => reject(err));
+  });
+
+  archive.pipe(output);
+  // Include the working root so the archive contains the 'bin' folder
+  archive.directory(archiveWorkingRoot + '/', false);
+  await archive.finalize();
+  await finalizePromise;
+
   return { archivePath, executableName };
 }
 
@@ -51,12 +58,6 @@ suite('FFmpeg - real install E2E', () => {
   });
 
   test('downloads, extracts, makes executable and reports version', async function () {
-    // Windows binaries are real EXEs; keeping the test focused on *nix keeps it stable.
-    if (os.platform() === 'win32') {
-      this.skip();
-      return;
-    }
-
     this.timeout(120_000);
 
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ffmpeg-e2e-'));
@@ -128,7 +129,7 @@ suite('FFmpeg - real install E2E', () => {
       sinon.stub(managerInternals, 'resolveBinary').callsFake(() => ({
         url: 'local-fixture',
         filename: path.basename(archivePath),
-        extractPath: os.platform() === 'linux' ? '' : 'bin',
+        extractPath: 'bin',
         executableName
       }));
 
