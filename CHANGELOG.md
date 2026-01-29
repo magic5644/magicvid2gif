@@ -2,7 +2,7 @@
 
 All notable changes to this extension are documented in this file.
 
-## [1.0.0] - 2024-01-28
+## [1.0.1] - 2024-01-29
 
 ### Added
 
