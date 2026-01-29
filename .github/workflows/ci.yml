@@ -41,7 +41,7 @@ jobs:
       run: npm run lint
       
     - name: Build
-      run: npm run build
+      run: npm run bundle
       
     - name: Run Tests (Linux)
       if: runner.os == 'Linux'

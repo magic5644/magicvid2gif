@@ -6,6 +6,7 @@ import { FfmpegManager } from './ffmpegManager';
 import { OptimizationService } from './optimizationService';
 import { ConversionOptions, VideoMetadata } from './types';
 import { VideoConverter } from './videoConverter';
+import { createSettingsPort, createUiPort, createWorkspacePort } from './platform/vscode';
 
 let converter: VideoConverter;
 let optimizer: OptimizationService;
@@ -14,8 +15,12 @@ let ffmpegManager: FfmpegManager;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   console.log('MagicVid2Gif extension is now active');
 
+  const ui = createUiPort();
+  const settings = createSettingsPort('magicvid2gif');
+  const workspacePort = createWorkspacePort(context);
+
   // Initialize FFmpeg manager
-  ffmpegManager = FfmpegManager.getInstance(context);
+  ffmpegManager = FfmpegManager.getInstance({ ui, settings, workspace: workspacePort });
 
   // Check/install FFmpeg at startup if needed
   const ffmpegPath = await ffmpegManager.getFfmpegPath();
@@ -39,8 +44,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   }
 
-  converter = new VideoConverter(context);
-  optimizer = new OptimizationService();
+  converter = new VideoConverter(ffmpegManager);
+  optimizer = new OptimizationService(settings);
 
   // Manual FFmpeg installation command
   const installCmd = vscode.commands.registerCommand(
@@ -51,7 +56,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         const version = await ffmpegManager.getVersion();
         vscode.window.showInformationMessage(`FFmpeg ${version} installed successfully!`);
         // Reinitialize the converter with the new path
-        converter = new VideoConverter(context);
+        converter = new VideoConverter(ffmpegManager);
       }
     }
   );
@@ -132,6 +137,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   context.subscriptions.push(disposableQuick, disposableOptions, installCmd);
+
+  // Export internals for tests
+  (module as any).exports._getFfmpegManager = () => ffmpegManager;
 
   // Debug: log registered commands for test visibility
   vscode.commands.getCommands().then(cmds => {

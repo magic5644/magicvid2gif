@@ -104,3 +104,7 @@ AGENTS.md
 .github/agents/
 .github/skills/
 .github/copilot-instructions.md
+
+# Ignore compiled test-suite JS
+src/test/suite/index.js
+src/test/suite/*.js

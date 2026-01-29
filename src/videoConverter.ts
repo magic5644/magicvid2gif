@@ -1,7 +1,6 @@
 import { exec } from 'node:child_process';
 import ffmpeg from 'fluent-ffmpeg';
 import { promisify } from 'node:util';
-import * as vscode from 'vscode';
 import { FfmpegManager } from './ffmpegManager';
 import { ConversionOptions, FfmpegProgress, ProgressCallback, VideoMetadata } from './types';
 
@@ -12,8 +11,8 @@ export class VideoConverter {
   private readonly ffmpegManager: FfmpegManager;
   private ffmpegPath: string | null = null;
 
-  constructor(context: vscode.ExtensionContext) {
-    this.ffmpegManager = FfmpegManager.getInstance(context);
+  constructor(ffmpegManager: FfmpegManager) {
+    this.ffmpegManager = ffmpegManager;
   }
 
   /**

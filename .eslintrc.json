@@ -10,15 +10,19 @@
   ],
   "rules": {
     "@typescript-eslint/naming-convention": "warn",
-    "@typescript-eslint/semi": "warn",
+    "semi": [
+      "warn",
+      "always"
+    ],
     "curly": "warn",
     "eqeqeq": "warn",
-    "no-throw-literal": "warn",
-    "semi": "off"
+    "no-throw-literal": "warn"
   },
   "ignorePatterns": [
     "out",
     "dist",
-    "**/*.d.ts"
+    "**/*.d.ts",
+    "src/test/suite/index.js",
+    "src/test/suite/*.js"
   ]
 }

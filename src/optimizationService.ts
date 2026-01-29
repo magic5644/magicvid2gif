@@ -3,26 +3,21 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
-import * as vscode from 'vscode';
 import { ConversionOptions } from './types';
+import { SettingsPort } from './types/ports';
 
 const execFileAsync = promisify(execFile);
 
 export class OptimizationService {
-  private config: vscode.WorkspaceConfiguration | null = null;
+  private readonly settings: SettingsPort;
   private gifsiclePath: string | null = null;
 
-  constructor() {
-    this.loadConfig();
-  }
-
-  private loadConfig(): void {
-    this.config = vscode.workspace.getConfiguration('magicvid2gif');
+  constructor(settings: SettingsPort) {
+    this.settings = settings;
   }
 
   public async checkGifsicle(): Promise<boolean> {
-    this.loadConfig();
-    const customPath = this.config?.get<string>('gifsiclePath');
+    const customPath = this.settings.get<string | undefined>('gifsiclePath', undefined);
 
     if (customPath && fs.existsSync(customPath)) {
       this.gifsiclePath = customPath;

@@ -9,5 +9,9 @@ dist/
 # Test runner artifacts
 .vscode-test/
 
+# Ignore compiled test-suite JS
+src/test/suite/index.js
+src/test/suite/*.js
+
 # Node modules
 node_modules/

@@ -1,4 +1,3 @@
-import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import * as myExtension from '../../extension';
 
@@ -6,7 +5,7 @@ suite('Extension Test Suite', () => {
   vscode.window.showInformationMessage('Start all tests.');
 
   test('Extension should be present', () => {
-    assert.ok(myExtension);
+    if (!myExtension) { throw new Error('Extension module not present'); }
   });
 
   test('Should register commands', async () => {
@@ -21,11 +20,11 @@ suite('Extension Test Suite', () => {
       const declared = ext?.packageJSON?.contributes?.commands
         ? ext.packageJSON.contributes.commands.map((c: any) => c.command)
         : [];
-      assert.ok(declared.includes('magicvid2gif.convert'));
-      assert.ok(declared.includes('magicvid2gif.convertWithOptions'));
+      if (!declared.includes('magicvid2gif.convert')) { throw new Error('magicvid2gif.convert not declared'); }
+      if (!declared.includes('magicvid2gif.convertWithOptions')) { throw new Error('magicvid2gif.convertWithOptions not declared'); }
     } else {
-      assert.ok(commands.includes('magicvid2gif.convert'));
-      assert.ok(commands.includes('magicvid2gif.convertWithOptions'));
+      if (!commands.includes('magicvid2gif.convert')) { throw new Error('magicvid2gif.convert not registered'); }
+      if (!commands.includes('magicvid2gif.convertWithOptions')) { throw new Error('magicvid2gif.convertWithOptions not registered'); }
     }
   });
 });

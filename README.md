@@ -24,6 +24,7 @@ VS Code extension and other vscode like editors that convert videos to optimized
 
 - Node.js 20+
 - FFmpeg (auto-downloaded by the extension if missing)
+  - Troubleshooting: If the extension cannot extract FFmpeg, ensure your system has `unzip` (macOS/Linux) or PowerShell available on Windows; for `.tar.xz` archives ensure `tar` is present. If detection fails, the extension attempts to resolve the absolute `ffmpeg` executable (`command -v ffmpeg` on POSIX, `where ffmpeg` on Windows).
 - Optional: Gifsicle for extra optimization
 
 ## Usage
