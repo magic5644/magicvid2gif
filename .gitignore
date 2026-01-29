@@ -92,6 +92,7 @@ Thumbs.db
 
 # Fichiers temporaires de l'extension
 *.gif
+!medias/**/*.gif
 !assets/**/*.gif
 temp/
 tmp/
