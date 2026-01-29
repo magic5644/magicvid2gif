@@ -40,8 +40,13 @@ suite('FfmpegManager - unit', () => {
       return cb(new Error('unexpected'));
     });
 
+    const execFileStub = sinon.stub().callsFake((...args: any[]) => {
+      const cb = args.at(-1);
+      return cb(null, { stdout: 'ffmpeg version 4.4.1', stderr: '' });
+    });
+
     const stubs: any = {};
-    stubs['node:child_process'] = { exec: execStub };
+    stubs['node:child_process'] = { exec: execStub, execFile: execFileStub };
     stubs['node:os'] = { platform: () => 'linux', arch: () => 'x64' };
 
     const module = proxyquire('../../ffmpegManager', stubs);
@@ -71,8 +76,13 @@ suite('FfmpegManager - unit', () => {
       return cb(new Error('unexpected'));
     });
 
+    const execFileStub = sinon.stub().callsFake((...args: any[]) => {
+      const cb = args.at(-1);
+      return cb(null, { stdout: 'ffmpeg version 4.3.2', stderr: '' });
+    });
+
     const stubs: any = {};
-    stubs['node:child_process'] = { exec: execStub };
+    stubs['node:child_process'] = { exec: execStub, execFile: execFileStub };
     stubs['node:os'] = { platform: () => 'win32', arch: () => 'x64' };
 
     const module = proxyquire('../../ffmpegManager', stubs);
@@ -100,8 +110,13 @@ suite('FfmpegManager - unit', () => {
       return cb(new Error('unexpected'));
     });
 
+    const execFileStub = sinon.stub().callsFake((...args: any[]) => {
+      const cb = args.at(-1);
+      return cb(null, { stdout: 'ffmpeg version 5.0.1 Copyright ...', stderr: '' });
+    });
+
     const stubs: any = {};
-    stubs['node:child_process'] = { exec: execStub };
+    stubs['node:child_process'] = { exec: execStub, execFile: execFileStub };
     const module = proxyquire('../../ffmpegManager', stubs);
     // Ensure fresh singleton per test
     module.FfmpegManager.instance = undefined;
@@ -129,8 +144,13 @@ suite('FfmpegManager - unit', () => {
       return cb(null, '', '');
     });
 
+    const execFileStub = sinon.stub().callsFake((...args: any[]) => {
+      const cb = args.at(-1);
+      return cb(null, { stdout: 'ffmpeg version 4.4', stderr: '' });
+    });
+
     const stubs: any = {};
-    stubs['node:child_process'] = { exec: execStub };
+    stubs['node:child_process'] = { exec: execStub, execFile: execFileStub };
     stubs['node:os'] = { platform: () => 'darwin', arch: () => 'x64' };
 
     const module = proxyquire('../../ffmpegManager', stubs);

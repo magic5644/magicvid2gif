@@ -59,7 +59,8 @@ suite('FFmpeg - real install E2E', () => {
 
   test('downloads, extracts, makes executable and reports version', async function () {
     // Skip this test in CI as it's I/O heavy and can timeout on slower runners
-    if (process.env.CI) {
+    // Skip on Windows as creating a valid .exe fixture is complex (batch scripts don't work as .exe)
+    if (process.env.CI || process.platform === 'win32') {
       this.skip();
     }
     this.timeout(120_000);
