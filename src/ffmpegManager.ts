@@ -4,7 +4,8 @@ import * as https from 'node:https';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
-import { UiPort, SettingsPort, WorkspacePort } from './types/ports';
+import { SettingsPort, UiPort, WorkspacePort } from './types/ports';
+const unzipper = require('unzipper');
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -526,22 +527,16 @@ export class FfmpegManager {
     });
   }
   private async extractArchive(archive: string, dest: string, extractSubPath: string): Promise<void> {
-    const platform = os.platform();
+    const _platform = os.platform();
 
     if (archive.endsWith('.zip')) {
-      // Use PowerShell on Windows, unzip on Unix
+      // Use unzipper library for reliable cross-platform extraction
       try {
-        if (platform === 'win32') {
-          const psCommand = `Expand-Archive -Path '${archive}' -DestinationPath '${dest}' -Force`;
-          await execAsync(`powershell.exe -Command "${psCommand}"`);
-        } else {
-          await execAsync(`unzip -o "${archive}" -d "${dest}"`);
-        }
+        await fs.createReadStream(archive)
+          .pipe(unzipper.Extract({ path: dest }))
+          .promise();
       } catch (err: any) {
-        const errMsg = platform === 'win32'
-          ? 'Extraction failed: PowerShell Expand-Archive failed. Ensure PowerShell is available and try again.'
-          : 'Extraction failed: `unzip` is not available or failed. Install `unzip` and try again.';
-        throw new Error(errMsg + (err?.message ? ` (${err.message})` : ''));
+        throw new Error('Extraction failed: Unable to extract ZIP archive.' + (err?.message ? ` (${err.message})` : ''));
       }
     } else if (archive.endsWith('.tar.xz')) {
       try {
@@ -551,12 +546,14 @@ export class FfmpegManager {
       }
     }
 
-    // If the binary is in a subfolder
+    // If the binary is in a subfolder, copy it to the root
     if (extractSubPath) {
       const extractedBin = path.join(dest, extractSubPath, this.getExecutableName());
       const finalBin = path.join(dest, this.getExecutableName());
       if (fs.existsSync(extractedBin)) {
         fs.copyFileSync(extractedBin, finalBin);
+      } else {
+        throw new Error(`FFmpeg binary not found at expected path: ${extractedBin}`);
       }
     }
   }
