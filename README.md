@@ -15,6 +15,10 @@ VS Code extension and other vscode like editors that convert videos to optimized
 
 ## Features
 
+<div align="center">
+  <img src="medias/demo.gif" alt="demo of Magic Vid2Gif in action" width="800"/>
+</div>
+
 - Fast default conversion and an advanced options flow (start time, duration, resolution, FPS, palette).
 - High-quality pipeline: Lanczos scaling, global palette generation, ordered dithering.
 - Optional Gifsicle post-optimization (lossy/lossless).
