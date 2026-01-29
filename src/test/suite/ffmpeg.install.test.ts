@@ -61,7 +61,6 @@ suite('FFmpeg - real install E2E', () => {
     // Skip this test in CI as it's I/O heavy and can timeout on slower runners
     if (process.env.CI) {
       this.skip();
-      return;
     }
     this.timeout(120_000);
 
