@@ -1,10 +1,7 @@
 import { downloadAndUnzipVSCode, resolveCliArgsFromVSCodeExecutablePath, runTests } from '@vscode/test-electron';
-import { execFile } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { promisify } from 'node:util';
-
-const execFileAsync = promisify(execFile);
 
 async function main(): Promise<void> {
   // Parse --vsix=<path> or --vsix <path>
@@ -42,7 +39,18 @@ async function main(): Promise<void> {
   // Install the VSIX into the downloaded VS Code instance
   console.log('Installing VSIX into test instance...');
   try {
-    await execFileAsync(cli, [...args, '--install-extension', vsixPath]);
+    await new Promise<void>((resolve, reject) => {
+      const allArgs = [...args, '--install-extension', vsixPath].filter((arg): arg is string => arg !== undefined);
+      const child = spawn(cli, allArgs, {
+        shell: process.platform === 'win32',
+        stdio: 'inherit'
+      });
+      child.on('error', reject);
+      child.on('close', (code: number | null) => {
+        if (code === 0) { resolve(); }
+        else { reject(new Error(`CLI exited with code ${code}`)); }
+      });
+    });
   } catch (err: any) {
     console.error('Failed to install VSIX into test instance:', err?.message ?? err);
     process.exit(1);
