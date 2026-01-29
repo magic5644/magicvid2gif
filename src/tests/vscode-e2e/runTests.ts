@@ -1,4 +1,4 @@
-import { downloadAndUnzipVSCode, resolveCliPathFromVSCodeExecutablePath, runTests } from '@vscode/test-electron';
+import { downloadAndUnzipVSCode, resolveCliArgsFromVSCodeExecutablePath, runTests } from '@vscode/test-electron';
 import { execFile } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -37,12 +37,12 @@ async function main(): Promise<void> {
   // Download VS Code and get paths
   console.log('Downloading VS Code...');
   const vscodeExecutablePath = await downloadAndUnzipVSCode();
-  const cliPath = resolveCliPathFromVSCodeExecutablePath(vscodeExecutablePath);
+  const [cli, ...args] = resolveCliArgsFromVSCodeExecutablePath(vscodeExecutablePath);
 
   // Install the VSIX into the downloaded VS Code instance
   console.log('Installing VSIX into test instance...');
   try {
-    await execFileAsync(cliPath, ['--install-extension', vsixPath]);
+    await execFileAsync(cli, [...args, '--install-extension', vsixPath]);
   } catch (err: any) {
     console.error('Failed to install VSIX into test instance:', err?.message ?? err);
     process.exit(1);
