@@ -1,4 +1,4 @@
-import { exec } from 'node:child_process';
+import { exec, execFile } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as https from 'node:https';
 import * as os from 'node:os';
@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { UiPort, SettingsPort, WorkspacePort } from './types/ports';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 interface FfmpegBinary {
   url: string;
@@ -99,7 +100,7 @@ export class FfmpegManager {
       if (fs.existsSync(bundledPath)) {
         // Verify it is executable
         try {
-          await execAsync(`"${bundledPath}" -version`);
+          await execFileAsync(bundledPath, ['-version']);
           this.ffmpegPath = bundledPath;
           return bundledPath;
         } catch {
@@ -315,7 +316,7 @@ export class FfmpegManager {
 
     // Verify installation
     const finalPath = path.join(ffmpegDir, executableName);
-    await execAsync(`"${finalPath}" -version`);
+    await execFileAsync(finalPath, ['-version']);
 
     this.ffmpegPath = finalPath;
   }
@@ -359,7 +360,7 @@ export class FfmpegManager {
         if (firstLine) {
           // Verify the binary
           try {
-            await execAsync(`"${firstLine.trim()}" -version`);
+            await execFileAsync(firstLine.trim(), ['-version']);
             return firstLine.trim();
           } catch {
             // verification failed, continue
@@ -372,7 +373,7 @@ export class FfmpegManager {
           const cmdPath = (stdout || '').split(/\r?\n/).find(Boolean);
           if (cmdPath) {
             try {
-              await execAsync(`"${cmdPath.trim()}" -version`);
+              await execFileAsync(cmdPath.trim(), ['-version']);
               return cmdPath.trim();
             } catch {
               // verification failed, continue
@@ -488,7 +489,7 @@ export class FfmpegManager {
 
     try { await execAsync(`xattr -dr com.apple.quarantine "${execPath}"`); } catch { }
     fs.chmodSync(execPath, 0o755);
-    await execAsync(`"${execPath}" -version`);
+    await execFileAsync(execPath, ['-version']);
     this.ffmpegPath = execPath;
     return true;
   }
@@ -594,11 +595,11 @@ export class FfmpegManager {
   }
 
   public async getVersion(): Promise<string> {
-    const path = await this.getFfmpegPath();
-    if (!path) {return 'Not installed';}
+    const ffmpegPath = await this.getFfmpegPath();
+    if (!ffmpegPath) {return 'Not installed';}
 
     try {
-      const { stdout } = await execAsync(`"${path}" -version`);
+      const { stdout } = await execFileAsync(ffmpegPath, ['-version']);
       const match = /ffmpeg version ([^\s]+)/.exec(stdout);
       return match ? match[1] : 'Unknown';
     } catch {
