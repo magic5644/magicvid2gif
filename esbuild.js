@@ -51,7 +51,7 @@ async function main() {
     sourcesContent: false,
     platform: 'node',
     outfile: 'dist/extension.js',
-    external: ['vscode'],
+    external: ['vscode', '@aws-sdk/client-s3'],
     logLevel: 'silent',
     plugins: [esbuildProblemMatcherPlugin],
     target: 'node16',
