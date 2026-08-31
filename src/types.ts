@@ -13,6 +13,11 @@ export interface ConversionOptions {
   lossyCompression: number;
 }
 
+export interface CancellationSignal {
+  readonly isCancellationRequested?: boolean;
+  onCancellationRequested(listener: () => void): { dispose(): unknown };
+}
+
 export interface VideoMetadata {
   duration: number;
   width: number;
@@ -20,20 +25,18 @@ export interface VideoMetadata {
   fps: number;
 }
 
-export interface FfmpegProgress {
-  frames?: number;
-  currentFps?: number;
-  currentKbps?: number;
-  targetSize?: number;
-  timemark?: string;
-  percent?: number;
-}
-
 export interface ConversionResult {
   outputPath: string;
   sizeMB: number;
   duration: number;
   frameCount: number;
+}
+
+export interface OptimizationResult {
+  outputPath: string;
+  optimized: boolean;
+  skippedReason?: string;
+  error?: string;
 }
 
 export type ProgressCallback = (percent: number) => void;

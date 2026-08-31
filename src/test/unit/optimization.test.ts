@@ -16,12 +16,16 @@ suite('OptimizationService - unit', () => {
     fs.writeFileSync(tmp, '');
     fs.chmodSync(tmp, 0o755);
 
+    const execStub = sinon.stub().callsFake((_cmd: string, _args: string[], cb: any) => cb(null, 'gifsicle 1.0', ''));
+    const stubs: any = {};
+    stubs['node:child_process'] = { execFile: execStub };
     const settings = { get: (_k: string, _fallback: any) => tmp };
-    const module = proxyquire('../../optimizationService', {});
+    const module = proxyquire('../../optimizationService', stubs);
     const svc = new module.OptimizationService(settings);
 
     const ok = await svc.checkGifsicle();
     if (!ok) { throw new Error('Expected custom gifsicle path to be accepted'); }
+    sinon.assert.calledWith(execStub, tmp, ['--version']);
 
     fs.unlinkSync(tmp);
   });
@@ -51,9 +55,10 @@ suite('OptimizationService - unit', () => {
     const input = path.join(os.tmpdir(), `in_${Date.now()}.gif`);
     fs.writeFileSync(input, 'GIF89a');
 
-    const outPath = await svc.optimize(input, { colorCount: 128, lossyCompression: 80 } as any);
-    if (outPath === input) { throw new Error('Expected optimize to return a different temp path'); }
-    if (!outPath.startsWith(os.tmpdir())) { throw new Error('Expected temp path to be in OS temp dir'); }
+    const result = await svc.optimize(input, { colorCount: 128, lossyCompression: 80 } as any);
+    if (!result.optimized) { throw new Error('Expected optimize to report success'); }
+    if (result.outputPath === input) { throw new Error('Expected optimize to return a different temp path'); }
+    if (!result.outputPath.startsWith(os.tmpdir())) { throw new Error('Expected temp path to be in OS temp dir'); }
 
     fs.unlinkSync(input);
   });
