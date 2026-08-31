@@ -25,8 +25,13 @@ export default [
   },
   {
     ignores: [
+      'node_modules/**',
       'out/**',
       'dist/**',
+      '.vscode-test/**',
+      '.graph-it/**',
+      'wiki/**',
+      'coverage/**',
       '**/*.d.ts',
       'src/test/suite/index.js',
       'src/test/suite/*.js'

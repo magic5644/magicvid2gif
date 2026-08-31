@@ -86,6 +86,12 @@ jspm_packages/
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test/
 
+# Local analysis/tooling artifacts
+.graph-it/
+wiki/
+TECH_DEBT_AUDIT.tmp
+.vscode/settings.json
+
 # Fichiers OS
 .DS_Store
 Thumbs.db
@@ -109,3 +115,5 @@ AGENTS.md
 # Ignore compiled test-suite JS
 src/test/suite/index.js
 src/test/suite/*.js
+src/test/**/*.d.ts
+src/tests/**/*.d.ts

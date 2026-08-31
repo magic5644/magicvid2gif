@@ -2,16 +2,31 @@
 .vscode/**
 .vscode-test/**
 .github/**
+.graph-it/**
+.codex/**
+.agents/**
+.vscode-test
+.vscode-test/**
+**/.vscode-test/**
 .gitignore
 .yarnrc
 .clavix
 .gemini
+.vscodeignore
 .eslintignore
 .eslintrc.json
+eslint.config.*
 AGENTS.md
 esbuild.js
+package-lock.json
+TECH_DEBT_AUDIT.md
 vsc-extension-quickstart.md
 **/tsconfig.json
+wiki/**
+scripts/**
+coverage/**
+.nyc_output/**
+*.vsix
 
 # Source files (bundled by esbuild)
 src/**
@@ -24,7 +39,6 @@ out/test/**
 # Build artifacts
 **/*.map
 **/*.ts
-!**/types.d.ts
 
 # Test fixtures and binaries
 binaries/**

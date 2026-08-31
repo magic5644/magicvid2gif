@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 const esbuild = require('esbuild');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -54,7 +53,7 @@ async function main() {
     external: ['vscode', '@aws-sdk/client-s3'],
     logLevel: 'silent',
     plugins: [esbuildProblemMatcherPlugin],
-    target: 'node16',
+    target: 'node20',
     metafile: !!metafilePath,
   });
 

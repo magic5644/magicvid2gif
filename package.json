@@ -1,7 +1,7 @@
 {
   "name": "magicvid2gif",
   "displayName": "Magic Video To Gif",
-  "description": "Video to GIF converter optimized works with FFmpeg and Gifsicle. FFmpeg is required and can be auto-installed.",
+  "description": "Video to GIF converter for VS Code-compatible editors with auto-installed FFmpeg and optional Gifsicle optimization.",
   "version": "1.0.0",
   "publisher": "magic5644",
   "author": {
@@ -24,7 +24,7 @@
   },
   "engines": {
     "vscode": "^1.96.0",
-    "node": ">=20.0.0"
+    "node": ">=20.19.0"
   },
   "categories": [
     "Other",
@@ -95,21 +95,26 @@
         "magicvid2gif.defaultResolution": {
           "type": "string",
           "default": "1920:1080",
-          "description": "Default resolution (format width:height or -1:height to preserve aspect)"
+          "pattern": "^(original|(-1|[1-9]\\d*):(-1|[1-9]\\d*))$",
+          "description": "Default resolution (original, width:height, -1:height, or width:-1 to preserve aspect)"
         },
         "magicvid2gif.defaultFps": {
           "type": "number",
           "default": 30,
-          "description": "Default FPS for the GIF"
+          "minimum": 0,
+          "maximum": 60,
+          "description": "Default FPS for the GIF (0 = keep source FPS)"
         },
         "magicvid2gif.defaultStartTime": {
           "type": "number",
           "default": 0,
+          "minimum": 0,
           "description": "Default start time (seconds)"
         },
         "magicvid2gif.defaultDuration": {
           "type": "number",
           "default": 0,
+          "minimum": 0,
           "description": "Default duration (0 = until end)"
         },
         "magicvid2gif.colorCount": {
@@ -160,45 +165,50 @@
     "build:esbuild": "node esbuild.js",
     "bundle": "npm run build:esbuild",
     "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
+    "lint": "eslint .",
     "test:unit": "npm run compile && mocha -u tdd -r source-map-support/register ./out/test/unit/**/*.test.js",
     "test:e2e": "npm run compile && npm run build:esbuild && node ./out/test/runTest.js",
     "compile:tests": "npm run compile",
-    "test:vscode:vsix": "npx vsce package && npm run compile:tests && node ./out/tests/vscode-e2e/runTests.js --vsix",
+    "test:vscode:minimum": "npm run compile && npm run build:esbuild && node ./out/test/runTest.js --vscode-version 1.96.0",
+    "test:vscode:stable": "npm run compile && npm run build:esbuild && node ./out/test/runTest.js --vscode-version stable",
+    "test:vscode:vsix": "npm run package:vsix -- --out magicvid2gif-test.vsix && npm run compile:tests && node ./out/test/vscode-e2e/runTests.js --vsix magicvid2gif-test.vsix",
     "test": "npm run test:e2e",
     "check:types": "tsc --noEmit",
-    "audit": "npm audit",
+    "audit": "npm audit --audit-level=high",
+    "audit:low": "npm audit --audit-level=low",
     "audit:fix": "npm audit fix",
     "package": "vsce package",
     "package:vsix": "vsce package",
-    "package:verify": "npx vsce ls | grep '\\.map$' && echo '❌ ERROR: .map files found in package!' && exit 1 || echo '✅ No .map files in package'"
+    "package:verify": "node ./scripts/verifyVsix.js",
+    "publish:vsce": "vsce publish",
+    "publish:open-vsx": "ovsx publish"
   },
   "devDependencies": {
     "@types/chai": "^5.2.3",
-    "@types/fluent-ffmpeg": "^2.1.28",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^25.9.5",
+    "@types/node": "^20.19.43",
     "@types/proxyquire": "^1.3.31",
     "@types/sinon": "^21.0.1",
     "@types/unzipper": "^0.10.11",
-    "@types/vscode": "^1.96.0",
+    "@types/vscode": "1.96.0",
     "@typescript-eslint/eslint-plugin": "^8.68.0",
     "@typescript-eslint/parser": "^8.68.0",
-    "@vscode/test-electron": "^2.5.2",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.9.2",
     "archiver": "^5.3.2",
     "chai": "^6.2.2",
     "esbuild": "^0.28.2",
     "eslint": "^10.9.1",
     "glob": "^8.1.0",
     "mocha": "^11.8.0",
+    "ovsx": "^1.1.1",
     "proxyquire": "^2.1.3",
     "sinon": "^21.1.2",
     "source-map-support": "^0.5.21",
     "typescript": "^4.9.5"
   },
   "dependencies": {
-    "fluent-ffmpeg": "^2.1.3",
     "unzipper": "^0.12.5"
   },
   "overrides": {

@@ -1,7 +1,6 @@
-import * as ffmpeg from 'fluent-ffmpeg';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { createUniqueOutputPath, isValidResolution, parseNumberInput, validateConversionOptions } from './conversionOptions';
 import { FfmpegManager } from './ffmpegManager';
 import { OptimizationService } from './optimizationService';
 import { ConversionOptions, VideoMetadata } from './types';
@@ -22,25 +21,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Initialize FFmpeg manager
   ffmpegManager = FfmpegManager.getInstance({ ui, settings, workspace: workspacePort });
 
-  // Check/install FFmpeg at startup if needed
+  // Check FFmpeg at startup without downloading external binaries implicitly.
   const ffmpegPath = await ffmpegManager.getFfmpegPath();
-  if (ffmpegPath) {
-    // Configure fluent-ffmpeg with the found path
-    ffmpeg.setFfmpegPath(ffmpegPath);
-  } else {
+  if (!ffmpegPath) {
     const config = vscode.workspace.getConfiguration('magicvid2gif');
     if (config.get('autoInstallFfmpeg', true)) {
-      const installed = await ffmpegManager.installFfmpeg();
-      if (!installed) {
-        vscode.window.showWarningMessage(
-          'FFmpeg is not installed. Some features will be unavailable.',
-          'Install now'
-        ).then(selection => {
-          if (selection === 'Install now') {
-            vscode.commands.executeCommand('magicvid2gif.installFfmpeg');
-          }
-        });
-      }
+      vscode.window.showWarningMessage(
+        'FFmpeg is not installed. MagicVid2Gif can download FFmpeg and FFprobe when needed.',
+        'Install now'
+      ).then(selection => {
+        if (selection === 'Install now') {
+          vscode.commands.executeCommand('magicvid2gif.installFfmpeg');
+        }
+      });
     }
   }
 
@@ -94,6 +87,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           dithering: config.get('dithering', true),
           lossyCompression: config.get('lossyCompression', 80)
         };
+
+        const validationError = validateConversionOptions(options);
+        if (validationError) {
+          vscode.window.showErrorMessage(`Invalid MagicVid2Gif settings: ${validationError}`);
+          return;
+        }
 
         await executeConversion(uri.fsPath, options);
       } catch (error) {
@@ -152,7 +151,7 @@ async function showOptionsDialog(videoPath: string): Promise<ConversionOptions |
   const startTime = await promptStartTime();
   if (startTime === null) {return null;}
 
-  const duration = await promptDuration(videoInfo);
+  const duration = await promptDuration(videoInfo, startTime);
   if (duration === null) {return null;}
 
   const resolution = await promptResolution(videoInfo);
@@ -167,14 +166,7 @@ async function showOptionsDialog(videoPath: string): Promise<ConversionOptions |
   const advanced = ('custom' in profile && profile.custom) ? await promptCustomOptimization() : profile;
   if (!advanced) {return null;}
 
-  let lossyCompression = 50;
-  if (advanced.optimizationLevel === 'ultra') {
-    lossyCompression = 80;
-  } else if (advanced.optimizationLevel === 'fast') {
-    lossyCompression = 30;
-  }
-
-  return {
+  const options: ConversionOptions = {
     startTime,
     duration,
     resolution,
@@ -182,8 +174,16 @@ async function showOptionsDialog(videoPath: string): Promise<ConversionOptions |
     colorCount: advanced.colorCount,
     optimizationLevel: advanced.optimizationLevel,
     dithering: advanced.dithering,
-    lossyCompression
+    lossyCompression: advanced.lossyCompression
   };
+
+  const validationError = validateConversionOptions(options, videoInfo);
+  if (validationError) {
+    vscode.window.showErrorMessage(`Invalid conversion options: ${validationError}`);
+    return null;
+  }
+
+  return options;
 }
 
 async function getVideoMetadataSafe(videoPath: string): Promise<VideoMetadata> {
@@ -200,21 +200,22 @@ async function promptStartTime(): Promise<number | null> {
     prompt: 'Start time (seconds)',
     value: '0',
     validateInput: (val: string) => {
-      const num = Number.parseFloat(val);
-      return (Number.isNaN(num) || num < 0) ? 'Please enter a positive number' : undefined;
+      return parseNumberInput(val, { min: 0 }) === null ? 'Please enter a positive number' : undefined;
     }
   });
   return value === undefined ? null : Number.parseFloat(value);
 }
 
-async function promptDuration(videoInfo: VideoMetadata): Promise<number | null> {
+async function promptDuration(videoInfo: VideoMetadata, startTime: number): Promise<number | null> {
   const value = await vscode.window.showInputBox({
     prompt: `Duration (seconds, 0 = until the end). Total duration: ${videoInfo.duration.toFixed(1)}s`,
     value: '0',
     validateInput: (val: string) => {
-      const num = Number.parseFloat(val);
-      if (Number.isNaN(num) || num < 0) {return 'Please enter a positive number';}
-      if (num > videoInfo.duration) {return `Duration exceeds the video length (${videoInfo.duration.toFixed(1)}s)`;}
+      const num = parseNumberInput(val, { min: 0 });
+      if (num === null) {return 'Please enter a positive number';}
+      if (videoInfo.duration > 0 && num > 0 && startTime + num > videoInfo.duration) {
+        return `Start time plus duration exceeds the video length (${videoInfo.duration.toFixed(1)}s)`;
+      }
       return undefined;
     }
   });
@@ -243,7 +244,7 @@ async function promptResolution(videoInfo: VideoMetadata): Promise<string | null
   const customRes = await vscode.window.showInputBox({
     prompt: 'Custom resolution (format: width:height or -1:height to keep aspect ratio)',
     value: '1920:1080',
-    validateInput: (val: string) => /^\d+:\d+$/.test(val) ? undefined : 'Invalid format. Use width:height'
+    validateInput: (val: string) => isValidResolution(val) ? undefined : 'Invalid format. Use width:height, -1:height, or width:-1'
   });
   return customRes || null;
 }
@@ -253,21 +254,29 @@ async function promptFps(videoInfo: VideoMetadata): Promise<number | null> {
     prompt: "Frames per second (FPS, leave empty to keep original)",
     value: videoInfo.fps.toFixed(0),
     validateInput: (val: string) => {
+      if (val.trim().length === 0) {return undefined;}
       const num = Number.parseInt(val, 10);
       return (Number.isNaN(num) || num < 1 || num > 60) ? 'FPS must be between 1 and 60' : undefined;
     }
   });
-  return fpsStr === undefined ? null : Number.parseInt(fpsStr, 10);
+  if (fpsStr === undefined) {return null;}
+  return fpsStr.trim().length === 0 ? 0 : Number.parseInt(fpsStr, 10);
 }
 
-type ResolvedProfile = { colorCount: number; optimizationLevel: 'fast' | 'balanced' | 'quality' | 'ultra'; dithering: boolean; custom?: false };
+type ResolvedProfile = {
+  colorCount: number;
+  optimizationLevel: 'fast' | 'balanced' | 'quality' | 'ultra';
+  dithering: boolean;
+  lossyCompression: number;
+  custom?: false;
+};
 type ProfileChoice = ResolvedProfile | { custom: true };
 
 async function promptOptimizationProfile(): Promise<ProfileChoice | null> {
   const quickPick = await vscode.window.showQuickPick([
-    { label: '$(zap) Max quality (256 colors)', value: { colorCount: 256, optimization: 'ultra' as const, dithering: true } },
-    { label: '$(check) Balanced (128 colors)', value: { colorCount: 128, optimization: 'balanced' as const, dithering: true }, picked: true },
-    { label: '$(dash) Small file (64 colors)', value: { colorCount: 64, optimization: 'fast' as const, dithering: true } },
+    { label: '$(zap) Max quality (256 colors)', value: { colorCount: 256, optimization: 'ultra' as const, dithering: true, lossyCompression: 80 } },
+    { label: '$(check) Balanced (128 colors)', value: { colorCount: 128, optimization: 'balanced' as const, dithering: true, lossyCompression: 50 }, picked: true },
+    { label: '$(dash) Small file (64 colors)', value: { colorCount: 64, optimization: 'fast' as const, dithering: true, lossyCompression: 30 } },
     { label: '$(gear) Custom...', value: 'custom' as const }
   ], {
     placeHolder: "Optimization profile"
@@ -281,7 +290,8 @@ async function promptOptimizationProfile(): Promise<ProfileChoice | null> {
   return {
     colorCount: quickPick.value.colorCount,
     optimizationLevel: quickPick.value.optimization,
-    dithering: quickPick.value.dithering
+    dithering: quickPick.value.dithering,
+    lossyCompression: quickPick.value.lossyCompression
   };
 }
 
@@ -306,11 +316,27 @@ async function promptCustomOptimization(): Promise<ResolvedProfile | null> {
   ], { placeHolder: "Enable Bayer dithering?" });
   if (!ditherRes) {return null;}
 
+  const lossyCompression = await promptLossyCompression();
+  if (lossyCompression === null) {return null;}
+
   return {
     colorCount: colorPick.value,
     optimizationLevel: optPick.value,
-    dithering: ditherRes.value
+    dithering: ditherRes.value,
+    lossyCompression
   };
+}
+
+async function promptLossyCompression(): Promise<number | null> {
+  const value = await vscode.window.showInputBox({
+    prompt: 'Gifsicle lossy compression (0-200, 0 = lossless)',
+    value: '80',
+    validateInput: (val: string) => {
+      return parseNumberInput(val, { min: 0, max: 200 }) === null ? 'Lossy compression must be between 0 and 200' : undefined;
+    }
+  });
+
+  return value === undefined ? null : Number.parseInt(value, 10);
 }
 
 async function executeConversion(inputPath: string, options: ConversionOptions): Promise<void> {
@@ -343,23 +369,15 @@ async function executeConversion(inputPath: string, options: ConversionOptions):
       throw new Error('FFmpeg not available. Installation required.');
     }
 
-    token.onCancellationRequested(() => {
-      converter.cancel();
-    });
-
-    // Generate output path
-    const parsedPath = path.parse(inputPath);
-    const outputPath = path.join(parsedPath.dir, `${parsedPath.name}_magic.gif`);
-
-    // Remove if it already exists
-    if (fs.existsSync(outputPath)) {
-      fs.unlinkSync(outputPath);
+    const validationError = validateConversionOptions(options);
+    if (validationError) {
+      throw new Error(validationError);
     }
 
-    // Progression
+    const outputPath = createUniqueOutputPath(inputPath);
+    let optimizationStatus = 'skipped';
     const progressCallback = (percent: number) => {
       const adjusted = Math.min(Math.max(percent, 0), 100);
-      // Map FFmpeg 0-100 → overall 5-85 to leave room for post-processing steps.
       const mapped = 5 + (adjusted * 0.8);
       updateProgress(mapped, `Conversion... ${Math.round(mapped)}%`);
     };
@@ -367,19 +385,24 @@ async function executeConversion(inputPath: string, options: ConversionOptions):
     updateProgress(5, "Analyzing video...");
 
     try {
-      // Main conversion
-      await converter.convert(inputPath, outputPath, options, progressCallback);
+      await converter.convert(inputPath, outputPath, options, progressCallback, token);
 
-      // Additional optimization if Gifsicle is available
       const gifsicleAvailable = await optimizer.checkGifsicle();
       if (gifsicleAvailable && options.optimizationLevel !== 'fast') {
         updateProgress(95, "Final optimization...");
-        const optimizedPath = await optimizer.optimize(outputPath, options);
+        const result = await optimizer.optimize(outputPath, options);
+        optimizationStatus = result.optimized ? 'optimized with Gifsicle' : `skipped (${result.skippedReason ?? result.error ?? 'Gifsicle failed'})`;
 
-        if (optimizedPath !== outputPath && fs.existsSync(optimizedPath)) {
+        if (result.outputPath !== outputPath && fs.existsSync(result.outputPath)) {
           fs.unlinkSync(outputPath);
-          fs.renameSync(optimizedPath, outputPath);
+          fs.renameSync(result.outputPath, outputPath);
         }
+      } else if (!gifsicleAvailable) {
+        optimizationStatus = 'skipped (Gifsicle not found)';
+        updateProgress(90, "Skipping Gifsicle optimization.");
+      } else {
+        optimizationStatus = 'skipped (fast profile)';
+        updateProgress(90, "Skipping final optimization.");
       }
 
       const endTime = Date.now();
@@ -394,7 +417,7 @@ async function executeConversion(inputPath: string, options: ConversionOptions):
 
       // Success message with actions
       const result = await vscode.window.showInformationMessage(
-        `✨ GIF created!\n📊 ${sizeMB}MB in ${duration}s | FFmpeg ${ffmpegVersion}`,
+        `GIF created: ${sizeMB}MB in ${duration}s | FFmpeg ${ffmpegVersion} | Optimization: ${optimizationStatus}`,
         'Open',
         'Folder',
         'Copy path'
@@ -406,7 +429,7 @@ async function executeConversion(inputPath: string, options: ConversionOptions):
         await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(outputPath));
       } else if (result === 'Copy path') {
         await vscode.env.clipboard.writeText(outputPath);
-        vscode.window.showInformationMessage('✅ Path copied');
+        vscode.window.showInformationMessage('Path copied');
       }
     } catch (error) {
       // Cleanup on error

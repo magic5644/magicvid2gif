@@ -7,11 +7,15 @@ async function main(): Promise<void> {
   // Parse --vsix=<path> or --vsix <path>
   const argv = process.argv.slice(2);
   let vsixArg: string | undefined;
+  let versionArg: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg.startsWith('--vsix=')) { vsixArg = arg.split('=')[1]; break; }
-    if (arg === '--vsix' && argv[i + 1]) { vsixArg = argv[i + 1]; break; }
+    if (arg.startsWith('--vsix=')) { vsixArg = arg.split('=')[1]; }
+    if (arg === '--vsix' && argv[i + 1]) { vsixArg = argv[i + 1]; }
+    if (arg.startsWith('--vscode-version=')) { versionArg = arg.split('=')[1]; }
+    if (arg === '--vscode-version' && argv[i + 1]) { versionArg = argv[i + 1]; }
   }
+  const version = process.env.VSCODE_TEST_VERSION || versionArg || 'stable';
 
   // If not provided, try to find a .vsix in the repo root
   let vsixPath: string | undefined = vsixArg;
@@ -32,8 +36,8 @@ async function main(): Promise<void> {
   console.log(`Using VSIX: ${vsixPath}`);
 
   // Download VS Code and get paths
-  console.log('Downloading VS Code...');
-  const vscodeExecutablePath = await downloadAndUnzipVSCode();
+  console.log(`Downloading VS Code ${version}...`);
+  const vscodeExecutablePath = await downloadAndUnzipVSCode(version);
   const [cli, ...args] = resolveCliArgsFromVSCodeExecutablePath(vscodeExecutablePath);
 
   // Install the VSIX into the downloaded VS Code instance
@@ -65,7 +69,7 @@ async function main(): Promise<void> {
 
   // Run tests using the downloaded VS Code (which has the VSIX installed)
   console.log('Launching VS Code and running tests...');
-  await runTests({ extensionDevelopmentPath: path.resolve(__dirname, '../../'), extensionTestsPath });
+  await runTests({ vscodeExecutablePath, extensionDevelopmentPath: path.resolve(__dirname, '../../..'), extensionTestsPath });
 }
 
 void main().catch(err => { //NOSONAR

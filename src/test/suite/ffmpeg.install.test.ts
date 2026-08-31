@@ -1,4 +1,5 @@
 import * as assert from 'node:assert';
+import * as crypto from 'node:crypto';
 import { exec } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -15,7 +16,7 @@ const execAsync = promisify(exec);
  * Build a tiny fake FFmpeg archive so we exercise the real install flow
  * (download → extract → chmod → -version).
  */
-async function createFixtureArchive(tmpRoot: string): Promise<{ archivePath: string; executableName: string }> {
+async function createFixtureArchive(tmpRoot: string): Promise<{ archivePath: string; executableName: string; binarySha256: string }> {
   const executableName = os.platform() === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
 
   const payloadRoot = path.join(tmpRoot, 'payload');
@@ -26,6 +27,7 @@ async function createFixtureArchive(tmpRoot: string): Promise<{ archivePath: str
     ? '@echo off\r\necho ffmpeg version test-e2e\r\n'
     : '#!/bin/sh\necho "ffmpeg version test-e2e"\n';
   fs.writeFileSync(scriptPath, scriptContent, { mode: 0o755 });
+  const binarySha256 = crypto.createHash('sha256').update(fs.readFileSync(scriptPath)).digest('hex');
 
   const archiveWorkingRoot = path.join(tmpRoot, 'archive-src');
   const binDir = path.join(archiveWorkingRoot, 'bin');
@@ -49,7 +51,7 @@ async function createFixtureArchive(tmpRoot: string): Promise<{ archivePath: str
   await archive.finalize();
   await finalizePromise;
 
-  return { archivePath, executableName };
+  return { archivePath, executableName, binarySha256 };
 }
 
 suite('FFmpeg - real install E2E', () => {
@@ -98,8 +100,17 @@ suite('FFmpeg - real install E2E', () => {
       workspace: WorkspacePort;
       isDownloading: boolean;
       ffmpegPath: string | null;
-      installFfmpegDarwinArm: (ffmpegDir: string, archivePath: string, update: (p: number, m?: string) => void) => Promise<boolean>;
-      resolveBinary: () => { url: string; filename: string; extractPath: string; executableName: string };
+      ffprobePath: string | null;
+      resolveBinary: () => {
+        label: string;
+        primary: {
+          url: string;
+          filename: string;
+          extractPath: string;
+          executableName: string;
+          binarySha256: string;
+        };
+      };
       downloadArchive: (url: string, dest: string, update: (p: number, m?: string) => void) => Promise<void>;
     };
 
@@ -108,10 +119,11 @@ suite('FFmpeg - real install E2E', () => {
     const originalUi = managerInternals.ui;
     const originalIsDownloading = managerInternals.isDownloading;
     const originalFfmpegPath = managerInternals.ffmpegPath;
+    const originalFfprobePath = managerInternals.ffprobePath;
     managerInternals.workspace = { storagePath: () => tempRoot, tmpPath: () => tempRoot, toFsPath: (u: string) => u };
 
     // Build a tiny fixture archive to stand in for a real FFmpeg download
-    const { archivePath, executableName } = await createFixtureArchive(tempRoot);
+    const { archivePath, executableName, binarySha256 } = await createFixtureArchive(tempRoot);
 
     const ffmpegDir = path.join(tempRoot, 'ffmpeg');
     const ui: UiPort = {
@@ -129,13 +141,17 @@ suite('FFmpeg - real install E2E', () => {
       managerInternals.ui = ui;
       managerInternals.isDownloading = false;
       managerInternals.ffmpegPath = null;
+      managerInternals.ffprobePath = null;
 
-      sinon.stub(managerInternals, 'installFfmpegDarwinArm').callsFake(async () => false); // avoid Homebrew path in tests
       sinon.stub(managerInternals, 'resolveBinary').callsFake(() => ({
-        url: 'local-fixture',
-        filename: path.basename(archivePath),
-        extractPath: 'bin',
-        executableName
+        label: 'fixture',
+        primary: {
+          url: 'local-fixture',
+          filename: `downloaded-${path.basename(archivePath)}`,
+          extractPath: 'bin',
+          executableName,
+          binarySha256
+        }
       }));
 
       // When asked to download, copy our prebuilt archive instead of hitting the network
@@ -170,6 +186,7 @@ suite('FFmpeg - real install E2E', () => {
       managerInternals.ui = originalUi;
       managerInternals.isDownloading = originalIsDownloading;
       managerInternals.ffmpegPath = originalFfmpegPath;
+      managerInternals.ffprobePath = originalFfprobePath;
       try { fs.rmSync(tempRoot, { recursive: true, force: true }); } catch { /* ignore cleanup errors */ }
     }
   });
